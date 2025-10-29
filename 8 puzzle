@@ -1,0 +1,91 @@
+import time
+from heapq import heappush, heappop
+
+goal_state = [1, 2, 3, 4, 5, 6, 7, 8, 0]
+goal_positions = {goal_state[i]: (i // 3, i % 3) for i in range(9)}
+
+def is_solvable(puzzle):
+    arr = [x for x in puzzle if x != 0]
+    inversions = sum(arr[i] > arr[j] for i in range(len(arr)) for j in range(i + 1, len(arr)))
+    return inversions % 2 == 0
+
+def get_neighbors(state):
+    neighbors = []
+    zero = state.index(0)
+    x, y = zero // 3, zero % 3
+    moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    for dx, dy in moves:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < 3 and 0 <= ny < 3:
+            new_state = state[:]
+            swap_index = nx * 3 + ny
+            new_state[zero], new_state[swap_index] = new_state[swap_index], new_state[zero]
+            neighbors.append(new_state)
+    return neighbors
+
+def misplaced_tiles(state):
+    return sum(1 for i in range(9) if state[i] != 0 and state[i] != goal_state[i])
+
+def manhattan_distance(state):
+    dist = 0
+    for i in range(9):
+        if state[i] != 0:
+            x1, y1 = i // 3, i % 3
+            x2, y2 = goal_positions[state[i]]
+            dist += abs(x1 - x2) + abs(y1 - y2)
+    return dist
+
+def a_star(puzzle, heuristic):
+    open_list = []
+    heappush(open_list, (0, puzzle))
+    came_from = {}
+    g = {tuple(puzzle): 0}
+    f = {tuple(puzzle): heuristic(puzzle)}
+    explored = 0
+
+    while open_list:
+        _, current = heappop(open_list)
+        explored += 1
+
+        if current == goal_state:
+            path = []
+            while tuple(current) in came_from:
+                path.append(current)
+                current = came_from[tuple(current)]
+            path.append(current)
+            path.reverse()
+            return path, explored
+
+        for neighbor in get_neighbors(current):
+            new_g = g[tuple(current)] + 1
+            if tuple(neighbor) not in g or new_g < g[tuple(neighbor)]:
+                came_from[tuple(neighbor)] = current
+                g[tuple(neighbor)] = new_g
+                f[tuple(neighbor)] = new_g + heuristic(neighbor)
+                heappush(open_list, (f[tuple(neighbor)], neighbor))
+
+    return None, explored
+
+puzzles = [
+    [1, 2, 3, 4, 5, 6, 7, 8, 0],
+    [1, 2, 3, 4, 5, 6, 0, 7, 8],
+    [1, 2, 3, 5, 0, 6, 4, 7, 8],
+    [1, 2, 3, 4, 6, 5, 7, 8, 0],
+    [8, 7, 6, 5, 4, 3, 2, 1, 0],
+]
+
+for puzzle in puzzles:
+    print("Initial Puzzle:", puzzle)
+    if not is_solvable(puzzle):
+        print("This puzzle is unsolvable.\n")
+        continue
+
+    for name, h in [("Misplaced Tiles", misplaced_tiles), ("Manhattan Distance", manhattan_distance)]:
+        start = time.time()
+        path, explored = a_star(puzzle, h)
+        end = time.time()
+        print(f"Heuristic: {name}")
+        print(f"Nodes Expanded: {explored}")
+        print(f"Time: {(end - start) * 1000:.2f} ms")
+        print(f"Path Length: {len(path) if path else 'N/A'}\n")
+    print("-------------------------")
