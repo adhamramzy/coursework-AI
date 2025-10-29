@@ -1,0 +1,116 @@
+from collections import deque
+import heapq
+import time
+
+maze_str = [
+    "1101110111",
+    "0101011010",
+    "1111010111",
+    "1010110101",
+    "1011101101",
+    "1100101011",
+    "0110111010",
+    "1011101111",
+    "1000110001",
+    "1111101111"
+]
+
+maze = [[int(c) for c in row] for row in maze_str]
+rows, cols = len(maze), len(maze[0])
+start = (0, 0)
+end = (9, 9)
+
+def get_neighbors(pos):
+    x, y = pos
+    for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < rows and 0 <= ny < cols and maze[nx][ny] == 1:
+            yield (nx, ny)
+
+def bfs(start, end):
+    queue = deque([[start]])
+    visited = {start}
+    explored = 0
+    while queue:
+        path = queue.popleft()
+        node = path[-1]
+        explored += 1
+        if node == end:
+            return path, explored
+        for neighbor in get_neighbors(node):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(path + [neighbor])
+    return None, explored
+
+def heuristic(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+def astar(start, end):
+    open_set = []
+    heapq.heappush(open_set, (heuristic(start, end), [start]))
+    visited = set()
+    explored = 0
+    while open_set:
+        _, path = heapq.heappop(open_set)
+        node = path[-1]
+        explored += 1
+        if node == end:
+            return path, explored
+        if node in visited:
+            continue
+        visited.add(node)
+        for neighbor in get_neighbors(node):
+            if neighbor not in visited:
+                new_path = path + [neighbor]
+                cost = len(new_path) + heuristic(neighbor, end)
+                heapq.heappush(open_set, (cost, new_path))
+    return None, explored
+
+def visualize_path(path):
+    grid = [["█" if maze[i][j] == 0 else " " for j in range(cols)] for i in range(rows)]
+    if path:
+        for (x, y) in path:
+            if (x, y) != start and (x, y) != end:
+                grid[x][y] = "*"
+        grid[start[0]][start[1]] = "S"
+        grid[end[0]][end[1]] = "E"
+    print("\nMaze (█=wall, *=path, S=start, E=end):")
+    for r in grid:
+        print("".join(r))
+
+print(f"Start: {start}, End: {end}\n")
+
+t1 = time.time()
+bfs_path, bfs_nodes = bfs(start, end)
+bfs_time = (time.time() - t1) * 1000
+
+t2 = time.time()
+astar_path, astar_nodes = astar(start, end)
+astar_time = (time.time() - t2) * 1000
+
+print("=== BFS ===")
+if bfs_path:
+    print(f"Path length: {len(bfs_path)}")
+else:
+    print("No path found.")
+print(f"Nodes explored: {bfs_nodes}")
+print(f"Time: {round(bfs_time, 4)} ms")
+
+print("\n=== A* ===")
+if astar_path:
+    print(f"Path length: {len(astar_path)}")
+else:
+    print("No path found.")
+print(f"Nodes explored: {astar_nodes}")
+print(f"Time: {round(astar_time, 4)} ms")
+
+print("\n--- BFS Path ---")
+visualize_path(bfs_path)
+print("\n--- A* Path ---")
+visualize_path(astar_path)
+
+print("\n=== PERFORMANCE COMPARISON ===")
+print(f"Path Length: BFS = {len(bfs_path) if bfs_path else 'N/A'}, A* = {len(astar_path) if astar_path else 'N/A'}")
+print(f"Nodes Explored (Space): BFS = {bfs_nodes}, A* = {astar_nodes}")
+print(f"Time Taken (ms): BFS = {round(bfs_time, 4)}, A* = {round(astar_time, 4)}")
